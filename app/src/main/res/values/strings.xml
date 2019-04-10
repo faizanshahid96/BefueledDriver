@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">BeFueledDriver</string>
+    <string name="login">Login</string>
+    <string name="dbname_users">drivers</string>
+    <string name="auth_failed">Failed to Authenticate</string>
+    <string name="yes">Yes</string>
+    <string name="google_map_api_key">AIzaSyAQOf62LKuJRYliJed5mNUw2e7E5VLQOpI</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+</resources>
