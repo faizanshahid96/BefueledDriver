@@ -24,7 +24,6 @@ import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.example.befueleddriver.Fragments.HomeFragment;
-import com.example.befueleddriver.Fragments.MapFragment;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -94,7 +93,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void inflateHomeFragment() {
+        getLastKnownLocation();
         HomeFragment homeFragment = HomeFragment.newInstance();
+
 //        MapFragment mapFragment = MapFragment.newInstance();
 //        Bundle bundle = new Bundle();
 //        bundle.putParcelableArrayList(getString(R.string.intent_user_list), mUserList);

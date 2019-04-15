@@ -75,7 +75,7 @@
             android:layout_marginTop="10dp"
             android:layout_marginBottom="24dp"
             android:background="@drawable/btn_bg"
-            android:onClick="signin"
+            android:onClick="signins"
             android:padding="12dp"
             android:text="@string/login"
             android:textColor="@color/white"

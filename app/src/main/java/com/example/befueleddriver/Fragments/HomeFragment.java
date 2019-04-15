@@ -1,13 +1,16 @@
 package com.example.befueleddriver.Fragments;
 
+import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -16,18 +19,30 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import com.example.befueleddriver.Adapters.UserRecyclerAdapter;
+import com.example.befueleddriver.Models.CustomerRequest;
 import com.example.befueleddriver.R;
 import com.example.befueleddriver.Utils.ViewWeightAnimationWrapper;
+import com.firebase.geofire.GeoFire;
+import com.firebase.geofire.GeoLocation;
+import com.firebase.geofire.GeoQuery;
+import com.firebase.geofire.GeoQueryEventListener;
+import com.firebase.geofire.LocationCallback;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -42,38 +57,54 @@ import static com.example.befueleddriver.Utils.Constants.MAPVIEW_BUNDLE_KEY;
 
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, LocationListener, View.OnClickListener {
+        GoogleApiClient.OnConnectionFailedListener, LocationListener, View.OnClickListener, com.google.android.gms.location.LocationListener {
 
     private static final String TAG = "HomeFragment";
     GoogleApiClient mGoogleApiClient;
+    Location mLastLocation;
+    LocationRequest mLocationRequest;
     private MapView mMapView;
     private GoogleMap mMap;
     FirebaseAuth mAuth;
     DatabaseReference myRef;
     ArrayList<String> username, email;
+    ArrayList<CustomerRequest> customerRequests;
+
     private UserRecyclerAdapter adapter;
     private String userID;
     private RecyclerView recyclerView;
     private RelativeLayout mMapContainer;
+    private LatLng latLng;
+    private FusedLocationProviderClient mFusedLocationClient;
 
 
     private static final int MAP_LAYOUT_STATE_CONTRACTED = 0;
     private static final int MAP_LAYOUT_STATE_EXPANDED = 1;
     private int mMapLayoutState = 0;
 
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // MapView requires that the Bundle you pass contain _ONLY_ MapView SDK
+        // objects or sub-Bundles.
+
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+        mAuth = FirebaseAuth.getInstance();
+        userID = mAuth.getCurrentUser().getUid();
         mMapView = view.findViewById(R.id.user_list_map);
         mMapContainer = view.findViewById(R.id.map_container);
-        mAuth =FirebaseAuth.getInstance();
-        userID = mAuth.getUid();
+        Log.d(TAG, "onCreateViewuserid: "+userID);
         view.findViewById(R.id.btn_full_screen_map).setOnClickListener(this);
-        myRef = FirebaseDatabase.getInstance().getReference().child("customerRequest");
+        myRef = FirebaseDatabase.getInstance().getReference().child("driverAvailable").child(userID);
         // Inflate the layout for this fragment
-
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getActivity());
         username = new ArrayList<>();
         email = new ArrayList<>();
         initRecyclerView(view);
@@ -92,26 +123,29 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
         email.add("sheh@gmail.com");
 
 
+
+
         Log.d(TAG, "initRecyclerView: ");
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference().child("customerRequest");
         recyclerView = view.findViewById(R.id.user_list_recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-//        myRef.addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-//
-//            }
-//
-//            @Override
-//            public void onCancelled(@NonNull DatabaseError databaseError) {
-//
-//            }
-//        });
+        ref.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
 
-        adapter = new UserRecyclerAdapter(getActivity(),username,email);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
+
+        adapter = new UserRecyclerAdapter(getActivity(), username, email);
         recyclerView.setAdapter(adapter);
     }
 
-    private void initGoogleMap(Bundle savedInstanceState){
+    private void initGoogleMap(Bundle savedInstanceState) {
         Bundle mapViewBundle = null;
         if (savedInstanceState != null) {
             mapViewBundle = savedInstanceState.getBundle(MAPVIEW_BUNDLE_KEY);
@@ -158,6 +192,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
     @Override
     public void onStop() {
         super.onStop();
+//        String userid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+//        DatabaseReference myRef = FirebaseDatabase.getInstance().getReference("driverAvailable");
+//        GeoFire geoFire = new GeoFire(myRef);
+//        geoFire.removeLocation(userID);
         mMapView.onStop();
     }
 
@@ -182,8 +220,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
     @Override
     public void onMapReady(final GoogleMap map) {
         mMap = map;
+        mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
         buildGoogleApiClient();
-        map.addMarker(new MarkerOptions().position(new LatLng(0, 0)).title("Marker"));
+
+        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            return;
+        }
+        mMap.setMyLocationEnabled(true);
+
+//        mFusedLocationClient.getLastLocation().addOnSuccessListener(getActivity(), new OnSuccessListener<Location>() {
+//            @Override
+//            public void onSuccess(Location location) {
+//                mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
+//                mMap.animateCamera(CameraUpdateFactory.zoomTo(17));
+//            }
+//        });
     }
 
     protected synchronized void buildGoogleApiClient() {
@@ -197,18 +249,20 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
     }
 
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        // MapView requires that the Bundle you pass contain _ONLY_ MapView SDK
-        // objects or sub-Bundles.
-
-    }
 
 
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(1000);
+        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            return;
+        }
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
 
     }
 
@@ -224,7 +278,25 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
 
     @Override
     public void onLocationChanged(Location location) {
+        mLastLocation = location;
+        latLng = new LatLng(location.getLatitude(),location.getLongitude());
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(17));
+        mMap.clear();
+        loadAllCustomers();
+//        mMap.addMarker(new MarkerOptions().position(latLng).title("Right Now"));
 
+        String userid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("driverAvailable");
+        GeoFire geoFire = new GeoFire(ref);
+        geoFire.setLocation(userid, new GeoLocation(latLng.latitude, latLng.longitude), new GeoFire.CompletionListener() {
+
+            @Override
+            public void onComplete(String key, DatabaseError error) {
+                Log.d(TAG, "keyss:" + key);
+
+            }
+        });
     }
 
     @Override
@@ -260,6 +332,124 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
 
         }
     }
+
+    private int radius=1;
+    private int distance=1;
+    boolean isDriverFound = false;
+    private String customerid;
+    private static final int LIMIT = 3;
+
+    private void loadAllCustomers(){
+        DatabaseReference customerLocation = FirebaseDatabase.getInstance().getReference().child("customerRequest");
+        Log.d(TAG, "loadAllCustomersss: "+mLastLocation);
+        GeoFire geoFire = new GeoFire(customerLocation);
+        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(mLastLocation.getLatitude(),mLastLocation.getLongitude()),distance);
+        geoQuery.removeAllListeners();
+        geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
+            @Override
+            public void onKeyEntered(String key, final GeoLocation location) {
+                Log.d(TAG, "onKeyEntered: "+ key);
+                FirebaseDatabase.getInstance().getReference("customerRequest").child(key)
+                        .addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                mMap.addMarker(new MarkerOptions().
+                                        position(new LatLng(location.latitude,location.longitude))
+                                        .flat(true)
+                                        .title("Hello"));
+                            }
+
+                            @Override
+                            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                            }
+                        });
+            }
+
+            @Override
+            public void onKeyExited(String key) {
+
+            }
+
+            @Override
+            public void onKeyMoved(String key, GeoLocation location) {
+
+            }
+
+            @Override
+            public void onGeoQueryReady() {
+                if (distance<=LIMIT){
+                    distance++;
+                    loadAllCustomers();
+                }
+            }
+
+            @Override
+            public void onGeoQueryError(DatabaseError error) {
+
+            }
+        });
+    }
+
+
+//    private void getCustomerLocation(){
+//        DatabaseReference customerLocation = FirebaseDatabase.getInstance().getReference().child("customerRequest");
+//        GeoFire geoFire = new GeoFire(customerLocation);
+//        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(mLastLocation.getLatitude(),mLastLocation.getLongitude()),radius);
+//        geoQuery.removeAllListeners();
+//        geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
+//            @Override
+//            public void onKeyEntered(String key, GeoLocation location) {
+//                if (!isDriverFound){
+//                    isDriverFound = true;
+//                    customerid = key;
+//                    Toast.makeText(getContext(), ""+key, Toast.LENGTH_SHORT).show();
+//                }
+//            }
+//
+//            @Override
+//            public void onKeyExited(String key) {
+//
+//            }
+//
+//            @Override
+//            public void onKeyMoved(String key, GeoLocation location) {
+//
+//            }
+//
+//            @Override
+//            public void onGeoQueryReady() {
+//
+//                if (!isDriverFound){
+//                    radius++;
+//                    getCustomerLocation();
+//                }
+//            }
+//
+//            @Override
+//            public void onGeoQueryError(DatabaseError error) {
+//
+//            }
+//        });
+//
+//
+//
+//
+//
+//
+////        geoFire.getLocation(userID, new LocationCallback() {
+////            @Override
+////            public void onLocationResult(String key, GeoLocation location) {
+////
+////            }
+////
+////            @Override
+////            public void onCancelled(DatabaseError databaseError) {
+////
+////            }
+////        });
+////        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(latLng))
+//    }
 
     private void expandMapAnimation(){
         ViewWeightAnimationWrapper mapAnimationWrapper = new ViewWeightAnimationWrapper(mMapContainer);

@@ -22,7 +22,7 @@ import com.google.firebase.auth.FirebaseUser;
 public class Login extends AppCompatActivity {
 
 
-    private static final String TAG = "";
+    private static final String TAG = "login";
     private Context mContext;
     private ProgressDialog mProgressdialog;
     private EditText mEmail, mPassword;
@@ -38,20 +38,21 @@ public class Login extends AppCompatActivity {
         mEmail = findViewById(R.id.input_email);
         mPassword = findViewById(R.id.input_password);
 //         Initialize Firebase Auth
-//        mAuth = FirebaseAuth.getInstance();
+        mAuth = FirebaseAuth.getInstance();
 //         [END initialize_auth]
     }
 
-//    @Override
-//    public void onStart() {
-//        super.onStart();
-//        // Check if user is signed in (non-null) and update UI accordingly.
-//        FirebaseUser currentUser = mAuth.getCurrentUser();
-//    }
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Check if user is signed in (non-null) and update UI accordingly.
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+    }
 
     private void signIn(String email, String password) {
         final ProgressDialog dialog = ProgressDialog.show(this, "",
                 "Loading. Please wait...", true);
+        Log.d(TAG, "signIn: "+email+" " +password);
         // [START sign_in_with_email]
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
@@ -66,7 +67,7 @@ public class Login extends AppCompatActivity {
                             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                             startActivity(intent);
                             finish();
-                            FirebaseUser user = mAuth.getCurrentUser();
+//                            FirebaseUser user = mAuth.getCurrentUser();
                         } else {
                             // If sign in fails, display a message to the user.
                             dialog.dismiss();
@@ -95,17 +96,15 @@ public class Login extends AppCompatActivity {
         return str.equals("");
     }
 
-    public void signin(View view) {
+    public void signins(View view) {
         String email = mEmail.getText().toString();
         String password = mPassword.getText().toString();
-//        if (!isStringNull(email) && !isStringNull(password)){
-//            signIn(email,password);
-//        }
-//        else
-//            Toast.makeText(mContext, "Fill in the fields", Toast.LENGTH_SHORT).show();
-        Intent intent = new Intent(mContext, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
+        Log.d(TAG, "signins: "+ email+"pass"+password);
+        if (!isStringNull(email) && !isStringNull(password)){
+            signIn(email,password);
+        }
+        else
+            Toast.makeText(mContext, "Fill in the fields", Toast.LENGTH_SHORT).show();
 
     }
 }
