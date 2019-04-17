@@ -4,7 +4,9 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="@color/White">
+
 
     <LinearLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
@@ -13,7 +15,12 @@
         android:orientation="vertical"
         android:weightSum="100"
         android:background="@color/White">
-
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="50"
+            android:visibility="gone"
+            android:id="@+id/frameLayout_next_fragment"/>
         <android.support.v7.widget.RecyclerView
             android:layout_width="match_parent"
             android:layout_height="0dp"
