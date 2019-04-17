@@ -357,6 +357,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
                                     Log.d(TAG, "onDataChange:s " + mkey);
 
                                 }
+                                //klsajdlkasjdklasd
                                 mMap.addMarker(new MarkerOptions().
                                         position(new LatLng(location.latitude,location.longitude))
                                         .flat(true)
