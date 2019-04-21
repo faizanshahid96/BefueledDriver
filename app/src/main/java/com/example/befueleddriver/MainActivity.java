@@ -9,21 +9,21 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.example.befueleddriver.Fragments.HomeFragment;
+import com.example.befueleddriver.Fragments.RequestFragment;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -37,19 +37,21 @@ import static com.example.befueleddriver.Utils.Constants.ERROR_DIALOG_REQUEST;
 import static com.example.befueleddriver.Utils.Constants.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION;
 import static com.example.befueleddriver.Utils.Constants.PERMISSIONS_REQUEST_ENABLE_GPS;
 
-public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, RequestFragment.OnBackPressListner {
 
     private static final String TAG = "Mainactivity";
     DrawerLayout drawer;
     private Context mContext;
     private boolean mLocationPermissionGranted = false;
     private FusedLocationProviderClient mFusedLocationClient;
-
+    private RequestFragment requestFragment;
+    private HomeFragment homeFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mContext = MainActivity.this;
+        requestFragment = new RequestFragment();
 //        this.requestWindowFeature(Window.FEATURE_NO_TITLE);
 //        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         try {
@@ -94,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void inflateHomeFragment() {
         getLastKnownLocation();
-        HomeFragment homeFragment = HomeFragment.newInstance();
+        homeFragment = HomeFragment.newInstance();
 
 //        MapFragment mapFragment = MapFragment.newInstance();
 //        Bundle bundle = new Bundle();
@@ -108,6 +110,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 //        transaction.addToBackStack("fragment_container");
 //        transaction.commit();
     }
+
 
     private boolean checkMapServices() {
         if (isServicesOK()) {
@@ -126,7 +129,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
                         Intent enableGpsIntent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                         startActivityForResult(enableGpsIntent, PERMISSIONS_REQUEST_ENABLE_GPS);
-//                        inflateMapFragment();
+                        inflateHomeFragment();
                     }
                 });
         final AlertDialog alert = builder.create();
@@ -250,8 +253,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             if (mLocationPermissionGranted) {
 //                getChatrooms();
                 getLastKnownLocation();
+//
             } else {
                 getLocationPermission();
+                inflateHomeFragment();
             }
         }
     }
@@ -268,6 +273,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         Intent intent = new Intent(MainActivity.this, Login.class);
                         startActivity(intent);
                         Toast.makeText(mContext, "Signed Out", Toast.LENGTH_SHORT).show();
+
                     }
                 })
                 .setNegativeButton(android.R.string.no, null)
@@ -279,4 +285,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public void onPointerCaptureChanged(boolean hasCapture) {
 
     }
+
+
+    @Override
+    public void onBackPressFragmentchange() {
+        Log.d(TAG, "onBackPressed:pressed");
+//        homeFragment.populaterecyclerView();
+        homeFragment.MakeFrameInvisible();
+    }
+
+
+    @Override
+    public void onBackPressed() {
+        Toast.makeText(mContext, "BackPress", Toast.LENGTH_SHORT).show();
+        onBackPressFragmentchange();
+    }
+
 }

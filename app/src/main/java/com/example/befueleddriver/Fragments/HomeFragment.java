@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import com.example.befueleddriver.Adapters.RecyclerViewAdapter;
 import com.example.befueleddriver.Models.CustomerRequest;
@@ -65,8 +66,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
     FirebaseAuth mAuth;
     DatabaseReference myRef;
     ArrayList<String> username, email;
+    FrameLayout frameLayout;
 
     boolean isDriverFound = false;
+    ArrayList<CustomerRequest> list;
+    TextView request_count;
     private MapView mMapView;
     private GoogleMap mMap;
     private RecyclerViewAdapter adapter;
@@ -76,12 +80,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
     private LatLng latLng;
     private FusedLocationProviderClient mFusedLocationClient;
     private int mMapLayoutState = 0;
-    private int radius = 1;
+//    private int radius = 1;
     private int distance = 1;
     private String customerid;
-    private ArrayList<String> mkey = new ArrayList<>();
+    private ArrayList<String> mkey;
     private String mlocalkey;
     private int i = 0;
+    private boolean initrecyclerview = true;
 
     public HomeFragment() {
         // Required empty public constructor
@@ -94,9 +99,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // MapView requires that the Bundle you pass contain _ONLY_ MapView SDK
-        // objects or sub-Bundles.
 
+    }
+
+    public void MakeFrameInvisible(){
+        frameLayout.setVisibility(View.INVISIBLE);
+        recyclerView.setVisibility(View.VISIBLE);
+    }
+
+    public void MakeFrameVisible(){
+        frameLayout.setVisibility(View.VISIBLE);
+        recyclerView.setVisibility(View.INVISIBLE);
     }
 
     @Override
@@ -105,47 +118,75 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
 
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         mAuth = FirebaseAuth.getInstance();
-
+//        mkey = new ArrayList<>();
         userID = mAuth.getCurrentUser().getUid();
         mMapView = view.findViewById(R.id.user_list_map);
         mMapContainer = view.findViewById(R.id.map_container);
         Log.d(TAG, "onCreateViewuserid: " + userID);
         view.findViewById(R.id.btn_full_screen_map).setOnClickListener(this);
-
         myRef = FirebaseDatabase.getInstance().getReference().child("driverAvailable").child(userID);
         // Inflate the layout for this fragment
+        request_count = view.findViewById(R.id.text_request_count);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getActivity());
-        username = new ArrayList<>();
-        email = new ArrayList<>();
 //        loadAllCustomers();
-        initRecyclerView(view);
+
         initGoogleMap(savedInstanceState);
+        initRecyclerView(view);
         return view;
     }
 
-    private void initRecyclerView(View view) {
+
+
+    public void initRecyclerView(final View view) {
+
+        list = new ArrayList<>();
         Log.d(TAG, "initRecyclerView: ");
+        mkey = new ArrayList<>();
         recyclerView = view.findViewById(R.id.user_list_recycler_view);
+        recyclerView.setVisibility(View.VISIBLE);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        adapter = new RecyclerViewAdapter(getActivity(), list, getActivity().getSupportFragmentManager(), new RecyclerViewAdapter.OnFragmentChangeClickListener() {
+            @Override
+            public void onFragmentchange(int position) {
+                // When the stuff is clicked
+                Log.d(TAG, "onFragmentchange: fragment changed  recyclerview is invisible");
+                recyclerView.setVisibility(View.INVISIBLE);
+                list.get(position);
+                Log.d(TAG, "onFragmentchange: list from fragment" + list.get(position).getUserID() + " " + list.get(position).getCarId());
+                frameLayout = view.findViewById(R.id.frameLayout_next_fragment);
+                frameLayout.setVisibility(View.VISIBLE);
+                RequestFragment requestFragment = new RequestFragment();
+                Bundle bundle = new Bundle();
+                bundle.putString("userId",list.get(position).getUserID());
+                bundle.putString("carId",list.get(position).getCarId());
+                bundle.putBoolean("isOrderPlace",list.get(position).isIsorderplaced());
+                requestFragment.setArguments(bundle);
+                getActivity().getSupportFragmentManager().beginTransaction().replace(R.id.frameLayout_next_fragment, requestFragment).commit();
+
+
+            }
+        });
+        recyclerView.setAdapter(adapter);
         ref.child("customerRequestInfo").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                ArrayList<CustomerRequest> list = new ArrayList<>();
+                ArrayList<CustomerRequest> mList = new ArrayList<>();
+                Log.d(TAG, "onDataChange:DATA " + dataSnapshot.toString());
                 dataSnapshot.getKey();
                 for (DataSnapshot dataSnapshot1 : dataSnapshot.getChildren()) {
                     i++;
                     CustomerRequest mRequest = dataSnapshot1.getValue(CustomerRequest.class);
+
+                    Log.d(TAG, "onDataChange:bools " + mkey + " " + mRequest.isIsorderplaced() + " " + mRequest.getUserID());
                     if (mkey.contains(mRequest.getUserID()) && mRequest.isIsorderplaced()) {
-                        list.add(mRequest);
-                        Log.d(TAG, "onDataChange:datasnapshot " + " " + mRequest.getCarId() + " " + mRequest.getUserID());
+//                        list.add(mRequest);
+                        mList.add(mRequest);
+                        Log.d(TAG, "onDataChange:datasnapshots " + " " + mRequest.getCarId() + " " + mRequest.getUserID());
                         Log.d(TAG, "onDataChange:datasnapshot" + mRequest);
                         Log.d(TAG, "onDataChange:datasnapshot" + "---------------");
                     }
-
-
                 }
-                adapter = new RecyclerViewAdapter(getActivity(), list, getActivity().getSupportFragmentManager());
-                recyclerView.setAdapter(adapter);
+                addReqs(mList);
             }
 
             @Override
@@ -155,6 +196,46 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
         });
 
 
+//        populaterecyclerView();
+    }
+
+//    public void populaterecyclerView(){
+//
+//        ref.child("customerRequestInfo").addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                ArrayList<CustomerRequest> mList = new ArrayList<>();
+//                Log.d(TAG, "onDataChange:DATA " + dataSnapshot.toString());
+//                dataSnapshot.getKey();
+//                for (DataSnapshot dataSnapshot1 : dataSnapshot.getChildren()) {
+//                    i++;
+//                    CustomerRequest mRequest = dataSnapshot1.getValue(CustomerRequest.class);
+//
+//                    Log.d(TAG, "onDataChange:bools " + mkey.contains(mRequest.getUserID()) + " " + mRequest.isIsorderplaced() + " " + mRequest.getUserID());
+//                    if (mkey.contains(mRequest.getUserID()) && mRequest.isIsorderplaced()) {
+////                        list.add(mRequest);
+//                        mList.add(mRequest);
+//                        Log.d(TAG, "onDataChange:datasnapshots " + " " + mRequest.getCarId() + " " + mRequest.getUserID());
+//                        Log.d(TAG, "onDataChange:datasnapshot" + mRequest);
+//                        Log.d(TAG, "onDataChange:datasnapshot" + "---------------");
+//                    }
+//                }
+//                addReqs(mList);
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError databaseError) {
+//
+//            }
+//        });
+//    }
+
+    private void addReqs(ArrayList<CustomerRequest> requests) {
+        Log.d(TAG, "addReqs: Adding ALL REQUESTS size= " + requests.size());
+        list.clear();
+        list.addAll(requests);
+        request_count.setText("COMPLETE NEXT (" + list.size() + ")");
+        adapter.notifyDataSetChanged();
     }
 
     private void initGoogleMap(Bundle savedInstanceState) {
@@ -257,6 +338,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(1000);
         mLocationRequest.setFastestInterval(1000);
+
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
@@ -283,7 +365,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
 //        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
 //        mMap.animateCamera(CameraUpdateFactory.zoomTo(17));
         mMap.clear();
-        loadAllCustomers();
 //        mMap.addMarker(new MarkerOptions().position(latLng).title("Right Now"));
 
         String userid = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -294,9 +375,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
             @Override
             public void onComplete(String key, DatabaseError error) {
                 Log.d(TAG, "keyss:" + key);
-
             }
         });
+
+        loadAllCustomers();
     }
 
     @Override
@@ -318,7 +400,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btn_full_screen_map: {
-
                 if (mMapLayoutState == MAP_LAYOUT_STATE_CONTRACTED) {
                     mMapLayoutState = MAP_LAYOUT_STATE_EXPANDED;
                     expandMapAnimation();
@@ -333,6 +414,21 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
         }
     }
 
+
+//    private void checkDataChange() {
+//        ref.child("customerRequestInfo").addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                mkey = new ArrayList<>();
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError databaseError) {
+//
+//            }
+//        });
+//    }
+
     private void loadAllCustomers() {
         DatabaseReference customerLocation = FirebaseDatabase.getInstance().getReference().child("customerRequest");
         Log.d(TAG, "loadAllCustomersss: " + mLastLocation);
@@ -345,23 +441,25 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
             public void onKeyEntered(final String key, final GeoLocation location) {
                 Log.d(TAG, "onKeyEntered: " + key);
                 FirebaseDatabase.getInstance().getReference("customerRequest").child(key)
-                        .addListenerForSingleValueEvent(new ValueEventListener() {
+                        .addValueEventListener(new ValueEventListener() {
                             @Override
                             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-
+//                                Log.d(TAG, "onDataChange:int "+j++);
+//                                checkDataChange();
                                 mlocalkey = key;
-                                Log.d(TAG, "onDataChange:load " + mlocalkey);
+                                Log.d(TAG, "onDataChange:load " + mlocalkey +" "+mkey.contains(mlocalkey));
                                 if (!mkey.contains(mlocalkey)) {
                                     mkey.add(mlocalkey);
 //                                    initRecyclerView(getView());
                                     Log.d(TAG, "onDataChange:s " + mkey);
 
                                 }
-                                //klsajdlkasjdklasd
                                 mMap.addMarker(new MarkerOptions().
-                                        position(new LatLng(location.latitude,location.longitude))
+                                        position(new LatLng(location.latitude, location.longitude))
                                         .flat(true)
                                         .title("Hello"));
+
+
                             }
 
                             @Override
@@ -369,6 +467,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
 
                             }
                         });
+
+
             }
 
             @Override
@@ -395,7 +495,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
 
             }
         });
+
+        if (initrecyclerview ) {
+            initRecyclerView(getView());
+            initrecyclerview = false;
+        }
     }
+
+
 
 
 //    private void getCustomerLocation(){

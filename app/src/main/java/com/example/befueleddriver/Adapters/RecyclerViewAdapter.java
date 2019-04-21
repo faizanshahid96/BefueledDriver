@@ -37,21 +37,26 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     private ArrayList<CustomerRequest> customerRequests;
     private Context mContext;
     private FragmentManager supportFragmentManager;
+    private OnFragmentChangeClickListener mListener;
 
-    public RecyclerViewAdapter(Context mContext, ArrayList<CustomerRequest> customerRequests, FragmentManager supportFragmentManager) {
+    public RecyclerViewAdapter(Context mContext, ArrayList<CustomerRequest> customerRequests, FragmentManager supportFragmentManager, OnFragmentChangeClickListener mListener) {
         mAuth = FirebaseAuth.getInstance();
         userID = mAuth.getCurrentUser().getUid();
         this.customerRequests = customerRequests;
-
+        this.mListener = mListener;
         this.supportFragmentManager = supportFragmentManager;
         this.mContext = mContext;
+    }
+
+    public interface OnFragmentChangeClickListener{
+        void onFragmentchange(int position);
     }
 
 
     @Override
     public Viewholder onCreateViewHolder(ViewGroup viewGroup, int i) {
         View view = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.layout_listitem, viewGroup, false);
-        RecyclerView.ViewHolder holder = new Viewholder(view);
+        RecyclerView.ViewHolder holder = new Viewholder(view, mListener);
         Log.d(TAG, "onCreateViewHolder: ");
         return (Viewholder) holder;
     }
@@ -90,13 +95,13 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
             });
 
 
-            viewholder.view_next.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-//                    FrameLayout frameLayout = v.findViewById(R.id.frameLayout_next_fragment);
-//                    frameLayout.setVisibility(View.VISIBLE);
-                }
-            });
+//            viewholder.view_next.setOnClickListener(new View.OnClickListener() {
+//                @Override
+//                public void onClick(View v) {
+////                    FrameLayout frameLayout = v.findViewById(R.id.frameLayout_next_fragment);
+////                    frameLayout.setVisibility(View.VISIBLE);
+//                }
+//            });
 //        viewholder.parentLayout.setOnClickListener(new View.OnClickListener() {
 //            @Override
 //            public void onClick(View v) {
@@ -162,7 +167,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
         ImageView view_next;
         RelativeLayout parentLayout;
 
-        public Viewholder(@NonNull View itemView) {
+        public Viewholder(@NonNull View itemView, final OnFragmentChangeClickListener mListener) {
             super(itemView);
             carLicense = itemView.findViewById(R.id.text_license_plate);
             carName = itemView.findViewById(R.id.text_car_names);
@@ -171,6 +176,14 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
             view_next = itemView.findViewById(R.id.btn_next_fragment);
             parentLayout = itemView.findViewById(R.id.parent_layout);
             Log.d(TAG, "Viewholder: " + itemView);
+
+            view_next.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Log.d(TAG, "onClick: button clicked");
+                    mListener.onFragmentchange(getAdapterPosition());
+                }
+            });
         }
     }
 }

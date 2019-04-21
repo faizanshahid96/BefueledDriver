@@ -1,45 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/White">
+    android:background="@color/White"
+    android:id="@+id/relative_layout"
+    android:orientation="vertical">
 
 
-    <LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@color/White"
         android:orientation="vertical"
-        android:weightSum="100"
-        android:background="@color/White">
-        <FrameLayout
+        android:weightSum="100">
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="50"
-            android:visibility="gone"
-            android:id="@+id/frameLayout_next_fragment"/>
-        <android.support.v7.widget.RecyclerView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="50"
-            android:id="@+id/user_list_recycler_view">
+            android:layout_weight="3"
+            android:background="@color/colorPrimary"
 
-        </android.support.v7.widget.RecyclerView>
+            android:gravity="center"
+            android:id="@+id/text_request_count"
+            android:textColor="@color/white"/>
 
         <RelativeLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="0dp"
-            android:layout_weight="50"
-            android:id="@+id/map_container">
+            android:layout_weight="47">
 
-            <com.google.android.gms.maps.MapView
-                xmlns:android="http://schemas.android.com/apk/res/android"
+
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/user_list_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+
+            <FrameLayout
+                android:id="@+id/frameLayout_next_fragment"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:id="@+id/user_list_map" />
+                android:visibility="invisible">
+            </FrameLayout>
+
+        </RelativeLayout>
+
+
+        <RelativeLayout
+            android:id="@+id/map_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="50">
+
+            <com.google.android.gms.maps.MapView xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/user_list_map"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
 
             <ImageButton
                 android:id="@+id/btn_full_screen_map"
@@ -51,17 +67,17 @@
                 android:layout_marginTop="57dp"
                 android:layout_marginEnd="10dp"
                 android:layout_marginRight="8dp"
+                android:visibility="visible"
                 android:src="@drawable/ic_center_focus_weak_black_24dp" />
         </RelativeLayout>
-
 
     </LinearLayout>
 
     <ProgressBar
+        android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/progressBar"
         android:layout_centerInParent="true"
-        android:visibility="gone"/>
+        android:visibility="gone" />
 
 </RelativeLayout>
