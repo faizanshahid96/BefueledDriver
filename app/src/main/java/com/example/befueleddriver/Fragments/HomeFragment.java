@@ -21,6 +21,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.example.befueleddriver.Adapters.RecyclerViewAdapter;
+import com.example.befueleddriver.Models.CustomerCarInfo;
 import com.example.befueleddriver.Models.CustomerRequest;
 import com.example.befueleddriver.R;
 import com.example.befueleddriver.Utils.ViewWeightAnimationWrapper;
@@ -38,6 +39,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
@@ -52,7 +54,7 @@ import java.util.ArrayList;
 import static com.example.befueleddriver.Utils.Constants.MAPVIEW_BUNDLE_KEY;
 
 
-public class HomeFragment extends Fragment implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
+public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClickListener,OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener, View.OnClickListener, com.google.android.gms.location.LocationListener {
 
     private static final String TAG = "HomeFragment";
@@ -117,6 +119,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
                              Bundle savedInstanceState) {
 
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+
         mAuth = FirebaseAuth.getInstance();
 //        mkey = new ArrayList<>();
         userID = mAuth.getCurrentUser().getUid();
@@ -181,7 +184,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
                     if (mkey.contains(mRequest.getUserID()) && mRequest.isIsorderplaced()) {
 //                        list.add(mRequest);
                         mList.add(mRequest);
-                        Log.d(TAG, "onDataChange:datasnapshots " + " " + mRequest.getCarId() + " " + mRequest.getUserID());
+
+                        Log.d(TAG, "onDataChange:datasnapshots " + " " + mRequest.getFuelQty() + " " + mRequest.getUserID());
                         Log.d(TAG, "onDataChange:datasnapshot" + mRequest);
                         Log.d(TAG, "onDataChange:datasnapshot" + "---------------");
                     }
@@ -407,7 +411,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
                     mMapLayoutState = MAP_LAYOUT_STATE_CONTRACTED;
                     contractMapAnimation();
                 }
-
                 break;
             }
 
@@ -446,6 +449,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
                             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
 //                                Log.d(TAG, "onDataChange:int "+j++);
 //                                checkDataChange();
+
                                 mlocalkey = key;
                                 Log.d(TAG, "onDataChange:load " + mlocalkey +" "+mkey.contains(mlocalkey));
                                 if (!mkey.contains(mlocalkey)) {
@@ -454,10 +458,38 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
                                     Log.d(TAG, "onDataChange:s " + mkey);
 
                                 }
-                                mMap.addMarker(new MarkerOptions().
-                                        position(new LatLng(location.latitude, location.longitude))
-                                        .flat(true)
-                                        .title("Hello"));
+
+                                FirebaseDatabase.getInstance().getReference("customerRequestInfo").child(key)
+                                        .addListenerForSingleValueEvent(new ValueEventListener() {
+                                            @Override
+                                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                             CustomerRequest request = dataSnapshot.getValue(CustomerRequest.class);
+                                             FirebaseDatabase.getInstance().getReference("CustomerCarInformation")
+                                                     .child(request.getUserID()).child(request.getCarId())
+                                                     .addListenerForSingleValueEvent(new ValueEventListener() {
+                                                         @Override
+                                                         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                                             CustomerCarInfo customerCarInfo = dataSnapshot.getValue(CustomerCarInfo.class);
+
+                                                             mMap.addMarker(new MarkerOptions().
+                                                                     position(new LatLng(location.latitude, location.longitude))
+                                                                     .flat(true)
+                                                                     .title(customerCarInfo.getCarcolor()+" "+customerCarInfo.getCarlicenseplate()));
+                                                         }
+
+                                                         @Override
+                                                         public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                                                         }
+                                                     });
+                                            }
+
+                                            @Override
+                                            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                                            }
+                                        });
+
 
 
                             }
@@ -495,14 +527,15 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
 
             }
         });
-
-        if (initrecyclerview ) {
+        j++;
+        if (j==3) {
+            Log.d(TAG, "loadAllCustomers:check "+initrecyclerview);
             initRecyclerView(getView());
             initrecyclerview = false;
         }
     }
 
-
+int j =0;
 
 
 //    private void getCustomerLocation(){
@@ -602,4 +635,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Google
         mapAnimation.start();
     }
 
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+
+    }
 }
