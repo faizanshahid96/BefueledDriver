@@ -38,12 +38,15 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     private Context mContext;
     private FragmentManager supportFragmentManager;
     private OnFragmentChangeClickListener mListener;
+    private UserListRecyclerClickListner mClickListner;
 
-    public RecyclerViewAdapter(Context mContext, ArrayList<CustomerRequest> customerRequests, FragmentManager supportFragmentManager, OnFragmentChangeClickListener mListener) {
+
+    public RecyclerViewAdapter(Context mContext, ArrayList<CustomerRequest> customerRequests, FragmentManager supportFragmentManager, OnFragmentChangeClickListener mListener, UserListRecyclerClickListner mClickListner) {
         mAuth = FirebaseAuth.getInstance();
         userID = mAuth.getCurrentUser().getUid();
         this.customerRequests = customerRequests;
         this.mListener = mListener;
+        this.mClickListner = mClickListner;
         this.supportFragmentManager = supportFragmentManager;
         this.mContext = mContext;
     }
@@ -56,7 +59,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     @Override
     public Viewholder onCreateViewHolder(ViewGroup viewGroup, int i) {
         View view = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.layout_listitem, viewGroup, false);
-        RecyclerView.ViewHolder holder = new Viewholder(view, mListener);
+        RecyclerView.ViewHolder holder = new Viewholder(view, mListener,mClickListner);
         Log.d(TAG, "onCreateViewHolder: ");
         return (Viewholder) holder;
     }
@@ -158,7 +161,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     }
 
 
-    public class Viewholder extends RecyclerView.ViewHolder {
+    public class Viewholder extends RecyclerView.ViewHolder implements View.OnClickListener {
         private static final String TAG = "Viewholder";
         TextView carName;
         TextView carModel;
@@ -166,8 +169,10 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
         TextView carLicense;
         ImageView view_next;
         RelativeLayout parentLayout;
+        UserListRecyclerClickListner mClickListner;
 
-        public Viewholder(@NonNull View itemView, final OnFragmentChangeClickListener mListener) {
+
+        public Viewholder(@NonNull View itemView, final OnFragmentChangeClickListener mListener,UserListRecyclerClickListner clickListner) {
             super(itemView);
             carLicense = itemView.findViewById(R.id.text_license_plate);
             carName = itemView.findViewById(R.id.text_car_names);
@@ -176,7 +181,8 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
             view_next = itemView.findViewById(R.id.btn_next_fragment);
             parentLayout = itemView.findViewById(R.id.parent_layout);
             Log.d(TAG, "Viewholder: " + itemView);
-
+            mClickListner = clickListner;
+            itemView.setOnClickListener(this);
             view_next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -185,5 +191,15 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
                 }
             });
         }
+
+        @Override
+        public void onClick(View v) {
+            mClickListner.onUserClick(getAdapterPosition());
+        }
+    }
+
+
+    public interface UserListRecyclerClickListner{
+        void onUserClick(int position);
     }
 }

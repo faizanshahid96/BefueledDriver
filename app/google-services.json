@@ -21,6 +21,10 @@
             "package_name": "com.example.befueleddriver",
             "certificate_hash": "7407457d2c1c87fb10a5a16d79a7f84d23fa37fd"
           }
+        },
+        {
+          "client_id": "86529744475-8c6ucju649dqslt399ogav8513te3dlg.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [
@@ -54,6 +58,10 @@
             "package_name": "com.example.faizans.befueled",
             "certificate_hash": "7407457d2c1c87fb10a5a16d79a7f84d23fa37fd"
           }
+        },
+        {
+          "client_id": "86529744475-8c6ucju649dqslt399ogav8513te3dlg.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [

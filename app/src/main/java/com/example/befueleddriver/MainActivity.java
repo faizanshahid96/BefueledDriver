@@ -20,6 +20,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.befueleddriver.Fragments.HomeFragment;
@@ -66,6 +68,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+        View headerView = navigationView.getHeaderView(0);
+        TextView email = headerView.findViewById(R.id.text_driverEmail);
+        email.setText(FirebaseAuth.getInstance().getCurrentUser().getEmail());
 //        MapFragment mapFragment = MapFragment.newInstance();
 //        getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,mapFragment).commit();
 //        inflateMapFragment();
