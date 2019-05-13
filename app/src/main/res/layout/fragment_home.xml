@@ -2,12 +2,11 @@
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/relative_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/White"
-    android:id="@+id/relative_layout"
     android:orientation="vertical">
-
 
 
     <LinearLayout
@@ -16,15 +15,16 @@
         android:background="@color/White"
         android:orientation="vertical"
         android:weightSum="100">
+
         <TextView
+            android:id="@+id/text_request_count"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="3"
-            android:background="@color/colorPrimary"
 
+            android:background="@color/colorPrimary"
             android:gravity="center"
-            android:id="@+id/text_request_count"
-            android:textColor="@color/white"/>
+            android:textColor="@color/white" />
 
         <RelativeLayout
             android:layout_width="wrap_content"
@@ -35,14 +35,13 @@
             <android.support.v7.widget.RecyclerView
                 android:id="@+id/user_list_recycler_view"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"/>
+                android:layout_height="match_parent" />
 
             <FrameLayout
                 android:id="@+id/frameLayout_next_fragment"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:visibility="invisible">
-            </FrameLayout>
+                android:visibility="invisible"></FrameLayout>
 
         </RelativeLayout>
 
@@ -58,24 +57,24 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
-            <ImageButton
+            <Button
                 android:id="@+id/btn_full_screen_map"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignTop="@+id/user_list_map"
+                android:layout_alignTop="@+id/ic_notify"
                 android:layout_alignParentEnd="true"
                 android:layout_alignParentRight="true"
                 android:layout_marginTop="57dp"
                 android:layout_marginEnd="10dp"
                 android:layout_marginRight="8dp"
-                android:visibility="visible"
-                android:src="@drawable/ic_center_focus_weak_black_24dp" />
+                android:text="Cancel"
+                android:visibility="gone" />
 
             <ImageView
                 android:id="@+id/ic_notify"
                 android:layout_width="46dp"
                 android:layout_height="40dp"
-                android:layout_alignTop="@+id/btn_full_screen_map"
+                android:layout_alignTop="@+id/user_list_map"
                 android:layout_alignParentEnd="true"
                 android:layout_alignParentRight="true"
                 android:layout_marginTop="60dp"

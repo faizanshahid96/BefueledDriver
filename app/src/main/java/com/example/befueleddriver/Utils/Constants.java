@@ -13,6 +13,8 @@ public class Constants {
     public static final String MAPVIEW_BUNDLE_KEY = "MapViewBundleKey";
     public static final String baseURL =  "https://maps.googleapis.com";
     public static final String fcmURL =  "https://fcm.googleapis.com/";
+    public static boolean checkNotifiy = false;
+    public static Location mDriverwhoCalled = null;
 
 //    public static IGoogleAPI getGoogleAPI(){
 //        return RetrofitClient.getClient(baseURL).create(IGoogleAPI.class);

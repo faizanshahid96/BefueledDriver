@@ -1,8 +1,6 @@
 package com.example.befueleddriver.Fragments;
 
 import android.Manifest;
-import android.animation.ObjectAnimator;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -17,6 +15,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
@@ -29,18 +28,14 @@ import com.directions.route.RouteException;
 import com.directions.route.Routing;
 import com.directions.route.RoutingListener;
 import com.example.befueleddriver.Adapters.RecyclerViewAdapter;
+import com.example.befueleddriver.Models.CustomInfoWindow;
 import com.example.befueleddriver.Models.CustomerCarInfo;
 import com.example.befueleddriver.Models.CustomerRequest;
-
 import com.example.befueleddriver.R;
-
-import com.example.befueleddriver.Utils.Constants;
-import com.example.befueleddriver.Utils.ViewWeightAnimationWrapper;
 import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQuery;
 import com.firebase.geofire.GeoQueryEventListener;
-import com.firebase.geofire.LocationCallback;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -50,6 +45,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -62,30 +58,26 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.gson.Gson;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 import static com.example.befueleddriver.Utils.Constants.MAPVIEW_BUNDLE_KEY;
 import static com.example.befueleddriver.Utils.Constants.mLastLocation;
 
 
 public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClickListener, OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, LocationListener, View.OnClickListener, com.google.android.gms.location.LocationListener, RecyclerViewAdapter.UserListRecyclerClickListner, RoutingListener {
+        GoogleApiClient.OnConnectionFailedListener, LocationListener, View.OnClickListener,
+        com.google.android.gms.location.LocationListener, RecyclerViewAdapter.UserListRecyclerClickListner, RoutingListener {
 
     private static final String TAG = "HomeFragment";
     private static final int MAP_LAYOUT_STATE_CONTRACTED = 0;
     private static final int MAP_LAYOUT_STATE_EXPANDED = 1;
     private static final int LIMIT = 1;
-    private static final int[] COLORS = new int[]{R.color.primary_dark_material_light};
+    private static final int[] COLORS = new int[]{R.color.White};
     final DatabaseReference ref = FirebaseDatabase.getInstance().getReference();
+    public String cancelKey = "";
     GoogleApiClient mGoogleApiClient;
-
     LocationRequest mLocationRequest;
     FirebaseAuth mAuth;
     DatabaseReference myRef;
@@ -120,22 +112,12 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
     private LatLng otherDriverLocation;
     private ArrayList<Route> mRoute;
     private boolean checksingle = true;
+    private boolean isNotify = false;
+    private Button btnGetDirection;
+    private LatLng requestedDriverLocation;
 
     public HomeFragment() {
         // Required empty public constructor
-    }
-
-    public static HomeFragment newInstance() {
-        return new HomeFragment();
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (getArguments()!=null){
-            isNotify = getArguments().getBoolean("getDirection");
-        }
-
     }
 
 //    public void populaterecyclerView(){
@@ -169,6 +151,19 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
 //        });
 //    }
 
+    public static HomeFragment newInstance() {
+        return new HomeFragment();
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (getArguments() != null) {
+            isNotify = getArguments().getBoolean("getDirection");
+        }
+
+    }
+
     public void MakeFrameInvisible() {
         frameLayout.setVisibility(View.INVISIBLE);
         recyclerView.setVisibility(View.VISIBLE);
@@ -193,7 +188,9 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
         polylines = new ArrayList<>();
         mMapContainer = view.findViewById(R.id.map_container);
         Log.d(TAG, "onCreateViewuserid: " + userID);
-        view.findViewById(R.id.btn_full_screen_map).setOnClickListener(this);
+        btnGetDirection = view.findViewById(R.id.btn_full_screen_map);
+        btnGetDirection.setVisibility(View.GONE);
+        btnGetDirection.setOnClickListener(this);
         myRef = FirebaseDatabase.getInstance().getReference().child("driverAvailable").child(userID);
         // Inflate the layout for this fragment
         request_count = view.findViewById(R.id.text_request_count);
@@ -211,44 +208,127 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
     }
 
     private void initRequestNotifier() {
+        ValueEventListener mListener;
 
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("NearestDriverCall");
-        GeoFire geoFire = new GeoFire(ref);
-        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 30);
-        geoQuery.removeAllListeners();
-        geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
+        FirebaseDatabase.getInstance().getReference().child("Notifiers").child(FirebaseAuth.getInstance().getUid()).addValueEventListener(new ValueEventListener() {
             @Override
-            public void onKeyEntered(String key, GeoLocation location) {
-                Log.d(TAG, "onKeyEnterednearestdriver: key "+key+ " userId "+userID);
-                if (key.equals(userID)){
-                    Log.d(TAG, "onKeyEnterednearestdriver: key "+key+ " userId "+userID);
-//                    if ()
-//                    getActivity().getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, new DriverNotifyFragment()).commit();
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    Log.d(TAG, "onDataChange: datasnapshot contains => " + dataSnapshot.toString());
+                    for (DataSnapshot dataSnapshot1 : dataSnapshot.getChildren()) {
+
+                        btnGetDirection.setVisibility(View.VISIBLE);
+
+//                        mListener = new ValueEventListener(){
+//                            @Override
+//                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//
+//                            }
+//
+//                            @Override
+//                            public void onCancelled(@NonNull DatabaseError databaseError) {
+//
+//                            }
+//                        };
+
+
+                        requestedDriverLocation = getLatLngFromString(dataSnapshot1.getValue(String.class));
+                        cancelKey = dataSnapshot1.getKey();
+//                        mMap.addMarker(new MarkerOptions().
+//                                position(new LatLng(requestedDriverLocation.latitude, requestedDriverLocation.longitude))
+//                                .flat(true)
+//                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+//                                .title("Driver"));
+
+                        getRouteToMarker(requestedDriverLocation);
+
+                    }
 
                 }
-
             }
 
             @Override
-            public void onKeyExited(String key) {
-
-            }
-
-            @Override
-            public void onKeyMoved(String key, GeoLocation location) {
-
-            }
-
-            @Override
-            public void onGeoQueryReady() {
-
-            }
-
-            @Override
-            public void onGeoQueryError(DatabaseError error) {
+            public void onCancelled(@NonNull DatabaseError databaseError) {
 
             }
         });
+
+//        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("NearestDriverCall").child(userID);
+//        ref.addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                Log.d(TAG, "onDataChange:datasnapshot " + dataSnapshot);
+//                btnGetDirection.setVisibility(View.VISIBLE);
+//                for (DataSnapshot dataSnapshot1 : dataSnapshot.getChildren()) {
+//                    RequestDriver requestDriver = dataSnapshot.getValue(RequestDriver.class);
+//                    Log.d(TAG, "onDataChange:request" + requestDriver.getUserId() + "" + requestDriver.getDriverRequestLat());
+////                    if (requestDriver.getUserId().equals(userID)) {
+////                        Log.d(TAG, "onKeyEnterednearestdriver: key " + requestDriver + " userId " + userID);
+////
+//
+//                    mMap.addMarker(new MarkerOptions().
+//                            position(new LatLng(requestDriver.getDriverRequstedLat(), requestDriver.getDriverRequestedLng()))
+//                            .flat(true)
+//                            .title("Driver"));
+//                    mMap.addMarker(new MarkerOptions().
+//                            position(new LatLng(requestDriver.getDriverRequestLat(), requestDriver.getDriverRequestLng()))
+//                            .flat(true)
+//                            .title("Driver"));
+////                        otherDriverLocation = new LatLng(requestDriver.getDriverRequestLat(), requestDriver.getDriverRequestLng());
+////                    }
+//                }
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError databaseError) {
+//
+//            }
+//        });
+
+//        GeoFire geoFire = new GeoFire(ref);
+//        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 30);
+//        geoQuery.removeAllListeners();
+//        geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
+//            @Override
+//            public void onKeyEntered(String key, GeoLocation location) {
+//                Log.d(TAG, "onKeyEnterednearestdriver: key " + key + " userId " + userID);
+//                if (key.equals(userID)) {
+//                    Log.d(TAG, "onKeyEnterednearestdriver: key " + key + " userId " + userID);
+////                    if ()
+//                    btnGetDirection.setVisibility(View.VISIBLE);
+//                    mMap.addMarker(new MarkerOptions().
+//                            position(new LatLng(location.latitude,location.longitude))
+//                            .flat(true)
+//                            .title("Driver"));
+//                    otherDriverLocation = new LatLng(location.latitude, location.longitude);
+////                    getActivity().getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, new DriverNotifyFragment()).commit();
+//
+//
+//
+//                }
+//
+//            }
+//
+//            @Override
+//            public void onKeyExited(String key) {
+//
+//            }
+//
+//            @Override
+//            public void onKeyMoved(String key, GeoLocation location) {
+//
+//            }
+//
+//            @Override
+//            public void onGeoQueryReady() {
+//
+//            }
+//
+//            @Override
+//            public void onGeoQueryError(DatabaseError error) {
+//
+//            }
+//        });
 
 //        geoFire.getLocation(userID, new LocationCallback() {
 //            @Override
@@ -413,11 +493,12 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
         buildGoogleApiClient();
 
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
             return;
         }
-        mMap.setMyLocationEnabled(true);
 
+        mMap.setOnInfoWindowClickListener(this);
+        mMap.setMyLocationEnabled(true);
+        mMap.setInfoWindowAdapter(new CustomInfoWindow(getContext()));
         mFusedLocationClient.getLastLocation().addOnSuccessListener(getActivity(), new OnSuccessListener<Location>() {
             @Override
             public void onSuccess(Location location) {
@@ -462,6 +543,21 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
 
     }
 
+
+//    private void checkDataChange() {
+//        ref.child("customerRequestInfo").addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                mkey = new ArrayList<>();
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError databaseError) {
+//
+//            }
+//        });
+//    }
+
     @Override
     public void onLocationChanged(Location location) {
         mLastLocation = location;
@@ -483,36 +579,21 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
         });
 
         loadAllCustomers();
-        if (checksingle == true){
+        if (checksingle) {
             initRequestNotifier();
             checksingle = false;
         }
-        if (mIsDriverNeed) {
+//        if (mIsDriverNeed) {
+//            callNearestDriver();
+//            mIsDriverNeed = false;
+//            isDriverFound = false;
+//        }
 
-            callNearestDriver();
-            isDriverFound = false;
-        }
-
-        if(isNotify){
-            onRoutingSuccess(mRoute,0);
+        if (isNotify) {
+            onRoutingSuccess(mRoute, 0);
         }
 
     }
-
-
-//    private void checkDataChange() {
-//        ref.child("customerRequestInfo").addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-//                mkey = new ArrayList<>();
-//            }
-//
-//            @Override
-//            public void onCancelled(@NonNull DatabaseError databaseError) {
-//
-//            }
-//        });
-//    }
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
@@ -527,29 +608,6 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
     @Override
     public void onProviderDisabled(String provider) {
 
-    }
-
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.btn_full_screen_map: {
-//                if (mMapLayoutState == MAP_LAYOUT_STATE_CONTRACTED) {
-//                    mMapLayoutState = MAP_LAYOUT_STATE_EXPANDED;
-//                    expandMapAnimation();
-//                } else if (mMapLayoutState == MAP_LAYOUT_STATE_EXPANDED) {
-//                    mMapLayoutState = MAP_LAYOUT_STATE_CONTRACTED;
-//                    contractMapAnimation();
-//                }
-//                break;
-                getRouteToMarker(otherDriverLocation);
-
-            }
-            case R.id.ic_notify:
-                callNearestDriver();
-//                sendRequestToDriver(mDriverId);
-                break;
-
-        }
     }
 //    IFCMService mService;
 //    private void sendRequestToDriver(String mDriverId) {
@@ -593,13 +651,58 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
 //        });
 //    }
 
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.btn_full_screen_map:
+//                if (mMapLayoutState == MAP_LAYOUT_STATE_CONTRACTED) {
+//                    mMapLayoutState = MAP_LAYOUT_STATE_EXPANDED;
+//                    expandMapAnimation();
+//                } else if (mMapLayoutState == MAP_LAYOUT_STATE_EXPANDED) {
+//                    mMapLayoutState = MAP_LAYOUT_STATE_CONTRACTED;
+//                    contractMapAnimation();
+//                }
+//                break;
+
+                erasePolylines();
+                mMap.clear();
+                FirebaseDatabase.getInstance().getReference().child("Notifiers").child(FirebaseAuth.getInstance().getUid()).removeValue();
+                btnGetDirection.setVisibility(View.GONE);
+
+//                if (btnGetDirection.getText().equals("Get Directions")) {
+//
+//                    getRouteToMarker(otherDriverLocation);
+//                    btnGetDirection.setText("Cancel");
+//                } else if (btnGetDirection.getText().equals("Cancel")) {
+//                    erasePolylines();
+//                    btnGetDirection.setText("Get Directions");
+//                    btnGetDirection.setVisibility(View.GONE);
+//                }
+
+                break;
+            case R.id.ic_notify:
+                mIsDriverNeed = true;
+                isDriverFound = false;
+                callNearestDriver();
+
+//                sendRequestToDriver(mDriverId);
+                break;
+
+        }
+    }
+
+    public LatLng getLatLngFromString(String location) {
+        return new LatLng(Double.valueOf(location.split(",")[0]), Double.valueOf(location.split(",")[1]));
+    }
+
     private void callNearestDriver() {
         final DatabaseReference driverLocation = FirebaseDatabase.getInstance().getReference().child("driverAvailable");
         Log.d(TAG, "callNearestDriver:location of last driver " + mLastLocation);
-        GeoFire geoFire = new GeoFire(driverLocation);
-        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(mLastLocation.getLatitude(), mLastLocation.getLongitude()), mDriverdistance);
+        final GeoFire geoFire = new GeoFire(driverLocation);
+        final GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(mLastLocation.getLatitude(), mLastLocation.getLongitude()), mDriverdistance);
 //        mMap.clear();
         geoQuery.removeAllListeners();
+
 
         geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
             @Override
@@ -609,37 +712,78 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
                 if (!isDriverFound && !userID.equals(key)) {
                     isDriverFound = true;
                     mDriverId = key;
+
                     Log.d(TAG, "onKeyEntered:true ");
-                    driverLocation.child(mDriverId).addValueEventListener(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                            Log.d(TAG, "onDataChange:keyentered " + dataSnapshot);
-                            mMap.addMarker(new MarkerOptions().
-                                    position(new LatLng(location.latitude, location.longitude))
-                                    .flat(true)
-                                    .title("Driver"));
-                            mIsDriverNeed = true;
-                            otherDriverLocation = new LatLng(location.latitude, location.longitude);
+//                    Requesting Driver => userID
+//                    To be notified Driver => mDriverID
+//                     Location of requesting driver => mLastLocation
 
-                            Log.d(TAG, "onDataChangeroutes: " + k++);
-//                                getRouteToMarker(otherDriverLocation);
+                    //Set the value
+                    FirebaseDatabase.getInstance().getReference().child("Notifiers").child(mDriverId).child(FirebaseAuth.getInstance().getUid()).setValue(getStringLocation(mLastLocation));
+                    Log.d(TAG, "onKeyEntered: LOOKING FOR DENOTIFIERS");
+//                    FirebaseDatabase.getInstance().getReference().child("Denotifier").child(FirebaseAuth.getInstance().getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
+//                        @Override
+//                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                            if (dataSnapshot.exists()) {
+//                                Log.d(TAG, "onDataChange: FOUND THE DENOTIFIER");
+//                                geoQuery.removeAllListeners();
+//                                FirebaseDatabase.getInstance().getReference().child("Denotifier").child(FirebaseAuth.getInstance().getUid()).removeValue();
+//                                FirebaseDatabase.getInstance().getReference().child("Notifiers").child(FirebaseAuth.getInstance().getUid()).removeValue();
+//                                mIsDriverNeed = false;
 //                            }
-                            DatabaseReference ref = FirebaseDatabase.getInstance().getReference("NearestDriverCall");
-                            GeoFire geoFire = new GeoFire(ref);
-                            geoFire.setLocation(mDriverId, new GeoLocation(otherDriverLocation.latitude, otherDriverLocation.longitude), new GeoFire.CompletionListener() {
-                                @Override
-                                public void onComplete(String key, DatabaseError error) {
-                                    Log.d(TAG, "onCompleteNearestDriver: "+key);
-                                }
-                            });
+//                        }
+//
+//                        @Override
+//                        public void onCancelled(@NonNull DatabaseError databaseError) {
+//
+//                        }
+//                    });
 
-                        }
+//                    DatabaseReference ref = FirebaseDatabase.getInstance().getReference("NearestDriverCall");
+//                    GeoFire geoFire = new GeoFire(ref);
+//                    otherDriverLocation = new LatLng(location.latitude, location.longitude);
+//                    geoFire.setLocation(mDriverId, new GeoLocation(otherDriverLocation.latitude, otherDriverLocation.longitude), new GeoFire.CompletionListener() {
+//                        @Override
+//                        public void onComplete(String key, DatabaseError error) {
+////
+//                            Log.d(TAG, "onCompleteNearestDriver: " + key);
+//                        }
+//                    });
 
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError databaseError) {
 
-                        }
-                    });
+//                    Map<String,Object> driverRequestID = new HashMap<>();
+//                    Map<String,Object> driverRequestCoord = new HashMap<>();
+//                    driverRequestCoord.put("userId",key);
+//                    driverRequestCoord.put("driverRequstedLat",location.latitude);
+//                    driverRequestCoord.put("driverRequstedLng",location.longitude);
+//                    driverRequestCoord.put("driverRequestLat",mLastLocation.getLatitude());
+//                    driverRequestCoord.put("driverRequestLng",mLastLocation.getLongitude());
+//                    driverRequestID.put(userID,driverRequestCoord);
+//                    ref.updateChildren(driverRequestID);
+
+//                    mIsDriverNeed = true;
+
+
+//                    driverLocation.child(mDriverId).addValueEventListener(new ValueEventListener() {
+//                        @Override
+//                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                            Log.d(TAG, "onDataChange:keyentered " + dataSnapshot);
+//
+//                            mIsDriverNeed = true;
+//                            otherDriverLocation = new LatLng(location.latitude, location.longitude);
+//
+//                            Log.d(TAG, "onDataChangeroutes: " + k++);
+////                                getRouteToMarker(otherDriverLocation);
+////                            }
+//
+//
+//                        }
+//
+//                        @Override
+//                        public void onCancelled(@NonNull DatabaseError databaseError) {
+//
+//                        }
+//                    });
 
                 }
 
@@ -669,19 +813,11 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
 
             }
         });
+
     }
 
-    private void getRouteToMarker(LatLng location) {
-        Routing routing = new Routing.Builder()
-                .travelMode(AbstractRouting.TravelMode.DRIVING)
-                .withListener(this)
-                .alternativeRoutes(true)
-                .key("AIzaSyAQOf62LKuJRYliJed5mNUw2e7E5VLQOpI")
-                .waypoints(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), location)
-                .build();
-        routing.execute();
-
-
+    public String getStringLocation(Location location) {
+        return String.valueOf(location.getLatitude()) + "," + String.valueOf(location.getLongitude());
     }
 
 
@@ -744,6 +880,20 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
 ////        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(latLng))
 //    }
 
+    private void getRouteToMarker(LatLng location) {
+
+        Routing routing = new Routing.Builder()
+                .travelMode(AbstractRouting.TravelMode.DRIVING)
+                .withListener(this)
+                .alternativeRoutes(true)
+                .key("AIzaSyAQOf62LKuJRYliJed5mNUw2e7E5VLQOpI")
+                .waypoints(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), location)
+                .build();
+        routing.execute();
+
+
+    }
+
     private void loadAllCustomers() {
         DatabaseReference customerLocation = FirebaseDatabase.getInstance().getReference().child("customerRequest");
         Log.d(TAG, "loadAllCustomersss: " + mLastLocation);
@@ -776,20 +926,41 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
                                             @Override
                                             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                                                 try {
-                                                    CustomerRequest request = dataSnapshot.getValue(CustomerRequest.class);
+                                                    final CustomerRequest request = dataSnapshot.getValue(CustomerRequest.class);
                                                     Log.d(TAG, "onDataChangereq: " + request);
                                                     FirebaseDatabase.getInstance().getReference("CustomerCarInformation")
                                                             .child(request.getUserID()).child(request.getCarId())
                                                             .addListenerForSingleValueEvent(new ValueEventListener() {
-
                                                                 @Override
                                                                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                                                                     CustomerCarInfo customerCarInfo = dataSnapshot.getValue(CustomerCarInfo.class);
-                                                                    Log.d(TAG, "onDataChangereq: " + customerCarInfo);
-                                                                    mMap.addMarker(new MarkerOptions().
-                                                                            position(new LatLng(location.latitude, location.longitude))
-                                                                            .flat(true)
-                                                                            .title(customerCarInfo.getCarcolor() + " " + customerCarInfo.getCarlicenseplate()));
+                                                                    Log.d(TAG, "onDataChangereq: " + customerCarInfo.getCarlicenseplate());
+                                                                    if (request.getTimeFrame().equals("180") ) {
+                                                                        mMap.addMarker(new MarkerOptions().
+                                                                                position(new LatLng(location.latitude, location.longitude))
+                                                                                .flat(true)
+                                                                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET))
+                                                                                .title(customerCarInfo.getCarlicenseplate())
+                                                                                .snippet(customerCarInfo.getCarmake()+" "+customerCarInfo.getCarmodel()));
+                                                                    }
+                                                                    if (request.getTimeFrame().equals("60"))  {
+                                                                        mMap.addMarker(new MarkerOptions().
+                                                                                position(new LatLng(location.latitude, location.longitude))
+                                                                                .flat(true)
+                                                                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))
+                                                                                .title(customerCarInfo.getCarlicenseplate())
+                                                                                .snippet(customerCarInfo.getCarmake()+" "+customerCarInfo.getCarmodel()));
+                                                                    }
+                                                                    if (request.getTimeFrame().equals("90")) {
+                                                                        mMap.addMarker(new MarkerOptions().
+                                                                                position(new LatLng(location.latitude, location.longitude))
+                                                                                .flat(true)
+                                                                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                                                                                .title(customerCarInfo.getCarlicenseplate())
+                                                                                .snippet(customerCarInfo.getCarmake()+" "+customerCarInfo.getCarmodel()));
+                                                                    }
+
+
                                                                 }
 
                                                                 @Override
@@ -859,46 +1030,9 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
 
     }
 
-    private void expandMapAnimation() {
-        ViewWeightAnimationWrapper mapAnimationWrapper = new ViewWeightAnimationWrapper(mMapContainer);
-        ObjectAnimator mapAnimation = ObjectAnimator.ofFloat(mapAnimationWrapper,
-                "weight",
-                50,
-                100);
-        mapAnimation.setDuration(800);
-
-        ViewWeightAnimationWrapper recyclerAnimationWrapper = new ViewWeightAnimationWrapper(recyclerView);
-        ObjectAnimator recyclerAnimation = ObjectAnimator.ofFloat(recyclerAnimationWrapper,
-                "weight",
-                50,
-                0);
-        recyclerAnimation.setDuration(800);
-
-        recyclerAnimation.start();
-        mapAnimation.start();
-    }
-
-    private void contractMapAnimation() {
-        ViewWeightAnimationWrapper mapAnimationWrapper = new ViewWeightAnimationWrapper(mMapContainer);
-        ObjectAnimator mapAnimation = ObjectAnimator.ofFloat(mapAnimationWrapper,
-                "weight",
-                100,
-                50);
-        mapAnimation.setDuration(800);
-
-        ViewWeightAnimationWrapper recyclerAnimationWrapper = new ViewWeightAnimationWrapper(recyclerView);
-        ObjectAnimator recyclerAnimation = ObjectAnimator.ofFloat(recyclerAnimationWrapper,
-                "weight",
-                0,
-                50);
-        recyclerAnimation.setDuration(800);
-
-        recyclerAnimation.start();
-        mapAnimation.start();
-    }
-
     @Override
     public void onInfoWindowClick(Marker marker) {
+
 
     }
 
@@ -923,11 +1057,13 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
 
     }
 
-    private boolean isNotify = false;
-
     @Override
     public void onRoutingSuccess(ArrayList<Route> route, int shortestRouteIndex) {
-
+//        try{
+//            mRoute.clear();
+//        }catch (Exception e){
+//
+//        }
         isNotify = true;
 
         if (polylines.size() > 0) {
@@ -937,8 +1073,8 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
         }
 
 
-        Log.d(TAG, "onRoutingSuccess: "+shortestRouteIndex);
         mRoute = route;
+        Log.d(TAG, "onRoutingSuccess: " + mRoute);
         polylines = new ArrayList<>();
         //add route(s) to the map.
         for (int i = 0; i < route.size(); i++) {
@@ -953,7 +1089,7 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
             Polyline polyline = mMap.addPolyline(polyOptions);
             polylines.add(polyline);
 
-            Toast.makeText(getContext(), "Route " + (i + 1) + ": distance - " + route.get(i).getDistanceValue() + ": duration - " + route.get(i).getDurationValue(), Toast.LENGTH_SHORT).show();
+//            Toast.makeText(getContext(), "Route " + (i + 1) + ": distance - " + route.get(i).getDistanceValue() + ": duration - " + route.get(i).getDurationValue(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -985,5 +1121,8 @@ public class HomeFragment extends Fragment implements GoogleMap.OnInfoWindowClic
             line.remove();
         }
         polylines.clear();
+
+        isNotify = false;
+
     }
 }

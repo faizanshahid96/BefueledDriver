@@ -12,6 +12,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.example.befueleddriver.Fragments.HomeFragment;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
@@ -46,6 +47,11 @@ public class Login extends AppCompatActivity {
     public void onStart() {
         super.onStart();
         // Check if user is signed in (non-null) and update UI accordingly.
+        if(FirebaseAuth.getInstance().getCurrentUser() !=null){
+            Intent intent = new Intent(this,MainActivity.class);
+            startActivity(intent);
+//            getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,new HomeFragment()).commit();
+        }
         FirebaseUser currentUser = mAuth.getCurrentUser();
     }
 
@@ -95,6 +101,8 @@ public class Login extends AppCompatActivity {
     private boolean isStringNull(String str) {
         return str.equals("");
     }
+
+
 
     public void signins(View view) {
         String email = mEmail.getText().toString();
